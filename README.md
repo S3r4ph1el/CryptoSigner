@@ -23,7 +23,7 @@ CryptoSigner é um projeto acadêmico que implementa um sistema simplificado de 
 
 1. **Clone o repositório**
    ```bash
-   git clone https://github.com/seu-usuario/CryptoSigner.git
+   git clone https://github.com/S3r4ph1el/CryptoSigner.git
    cd CryptoSigner
    ```
 
