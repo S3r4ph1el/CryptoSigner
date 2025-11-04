@@ -1,0 +1,143 @@
+/* CryptoSigner global styles */
+:root {
+  --bg: #0f172a;           /* slate-900 */
+  --panel: #111827;        /* gray-900 */
+  --panel-2: #0b1220;      /* darker */
+  --text: #e5e7eb;         /* gray-200 */
+  --muted: #94a3b8;        /* slate-400 */
+  --brand: #4f46e5;        /* indigo-600 */
+  --brand-2: #22c55e;      /* green-500 */
+  --danger: #ef4444;       /* red-500 */
+  --warning: #f59e0b;      /* amber-500 */
+  --border: #1f2937;       /* gray-800 */
+  --code: #111827;         /* gray-900 */
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: radial-gradient(1200px 600px at 10% -10%, rgba(79,70,229,0.25), transparent),
+              radial-gradient(800px 400px at 120% 10%, rgba(34,197,94,0.18), transparent),
+              var(--bg);
+  color: var(--text);
+}
+
+.container {
+  max-width: 980px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.brand {
+  display: flex; align-items: center; gap: 12px;
+}
+
+.brand .logo {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--brand), #7c3aed);
+  box-shadow: 0 8px 25px rgba(79,70,229,0.35);
+}
+
+.brand h1 { margin: 0; font-size: 20px; letter-spacing: .3px; }
+
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: color .2s ease, background .2s ease;
+}
+.nav a:hover { color: var(--text); background: rgba(148,163,184,0.12); }
+
+.panel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+}
+
+.card { grid-column: span 12; background: var(--panel); }
+
+@media (min-width: 900px) {
+  .card.half { grid-column: span 6; }
+}
+
+h2 { margin: 0 0 12px 0; font-size: 18px; }
+.p { margin: 6px 0 16px; color: var(--muted); }
+
+.input, .textarea, .select, .file {
+  width: 100%;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.textarea { min-height: 72px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+.btn {
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(79,70,229,.35);
+  transition: transform .08s ease, filter .2s ease;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn:active { transform: translateY(1px); }
+
+.btn.secondary { background: var(--brand-2); box-shadow: 0 6px 20px rgba(34,197,94,.32); }
+.btn.warn { background: var(--warning); box-shadow: 0 6px 20px rgba(245,158,11,.28); }
+
+.kv {
+  background: var(--panel-2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.badge { display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; background: rgba(79,70,229,.18); color: #c7d2fe; border: 1px solid rgba(79,70,229,.35); }
+
+.footer { margin-top: 28px; color: var(--muted); font-size: 13px; text-align: center; }
+
+hr.sep { border: none; height: 1px; background: var(--border); margin: 18px 0; }
+
+.copy {
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.copy .btn { padding: 8px 10px; font-size: 12px; }
+
+.hidden { display: none; }
+.success { color: #86efac; }
+.error { color: #fca5a5; }

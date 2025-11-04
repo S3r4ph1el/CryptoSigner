@@ -57,7 +57,7 @@ def modinv(a, m):
         x1 += m0
     return x1
 
-def gen_keys(bits: int = 64, max_attempts: int = 1000):
+def gen_keys(bits: int = 48, max_attempts: int = 1000):
     e = 65537
     attempts = 0
     while attempts < max_attempts:
@@ -84,60 +84,19 @@ def gen_keys(bits: int = 64, max_attempts: int = 1000):
 
     raise RuntimeError(f"failed to generate keys after {max_attempts} attempts")
 
-def str_to_int(message: str, max_bits: int = None) -> int:
+def sign(hash_bytes: bytes, d: int, n: int) -> int:
 
-    if not isinstance(message, str):
-        raise TypeError("message must be a str")
+    if not isinstance(hash_bytes, (bytes, bytearray)):
+        raise TypeError("sign expects hash_bytes as bytes")
     
-    message_bytes = message.encode('utf-8')
-    i = int.from_bytes(message_bytes, 'big')
+    hash_int = int.from_bytes(hash_bytes, byteorder='big', signed=False)
+    return pow(hash_int, d, n)
 
-    if max_bits is not None and i.bit_length() >= max_bits:
-        raise ValueError("message too large for given modulus/bit-size; split into blocks or use a larger key")
-    return i
+def verify(signature: int, hash_bytes: bytes, e: int, n: int) -> bool:
 
-def int_to_str(i) -> str:
+    if not isinstance(hash_bytes, (bytes, bytearray)):
+        raise TypeError("verify expects hash_bytes as bytes")
+    recovered = pow(signature, e, n)
 
-    if isinstance(i, str):
-        return i
-    
-    if not isinstance(i, int):
-        raise TypeError("int_to_str expects an int or str")
-    
-    if i == 0:
-        return ""
-    
-    num_bytes = (i.bit_length() + 7) // 8
-    return i.to_bytes(num_bytes, byteorder='big').decode('utf-8', errors='ignore')
-
-def crypt(message, e: int, n: int) -> int:
-
-    # integer path
-    if isinstance(message, int):
-        if not (0 <= message < n):
-            raise ValueError("message must satisfy 0 <= message < n")
-        return pow(message, e, n)
-
-    # string path
-    if isinstance(message, str):
-        message_int = str_to_int(message)
-        if not (0 <= message_int < n):
-            raise ValueError("message integer must be less than modulus n")
-        return pow(message_int, e, n)
-
-    raise TypeError("message must be int or str")
-
-def decrypt(ciphertext: int, d: int, n: int) -> int:
-
-    # integer path
-    if not isinstance(ciphertext, int):
-        raise TypeError("ciphertext must be an int")
-    
-    # validate ciphertext range
-    if not (0 <= ciphertext < n):
-        raise ValueError("ciphertext must satisfy 0 <= ciphertext < n")
-    
-    plaintext_int = pow(ciphertext, d, n)
-    plaintext = int_to_str(plaintext_int)
-
-    return plaintext
+    hash_int = int.from_bytes(hash_bytes, byteorder='big', signed=False)
+    return recovered == (hash_int % n)

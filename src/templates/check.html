@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CryptoSigner • Verificar</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script>
+        function setValue(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
+
+        function fillFromSigJson() {
+            try {
+                const json = document.getElementById('sigJson').value;
+                if (!json.trim()) return;
+                const data = JSON.parse(json);
+                if (data.signature) setValue('signatureInput', data.signature);
+                if (data.hash) setValue('hashInput', data.hash);
+                if (data.salt) setValue('saltInput', data.salt);
+                if (data.n) setValue('publicKeyN', data.n);
+                if (data.e) setValue('publicKeyE', data.e);
+            } catch (e) {
+                alert('JSON inválido.');
+            }
+        }
+
+        function loadSigFromUpload() {
+            try {
+                const input = document.getElementById('sigFileInput');
+                if (!input || !input.files || !input.files[0]) {
+                    alert('Selecione um arquivo .sig (JSON) para carregar.');
+                    return;
+                }
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const data = JSON.parse(reader.result);
+                        if (data.signature) setValue('signatureInput', String(data.signature));
+                        if (data.salt) setValue('saltInput', String(data.salt));
+                        if (data.n) setValue('publicKeyN', String(data.n));
+                        if (data.e) setValue('publicKeyE', String(data.e));
+                        toggleStatus('verifyStatus', 'Dados carregados do arquivo .sig.', 'success');
+                    } catch (e) {
+                        console.error(e);
+                        alert('Arquivo .sig inválido (JSON malformado).');
+                        toggleStatus('verifyStatus', 'Falha ao ler o arquivo .sig.', 'error');
+                    }
+                };
+                reader.onerror = () => {
+                    toggleStatus('verifyStatus', 'Erro ao ler o arquivo .sig.', 'error');
+                };
+                reader.readAsText(file);
+            } catch (e) {
+                console.error(e);
+                toggleStatus('verifyStatus', 'Falha ao processar o arquivo .sig.', 'error');
+            }
+        }
+
+            function loadPublicKeyFromLocal() {
+                try {
+                    const raw = localStorage.getItem('rsaKeys');
+                    if (!raw) {
+                        toggleStatus('verifyStatus', 'Nenhuma chave pública encontrada no navegador.', 'error');
+                        return;
+                    }
+                    const keys = JSON.parse(raw);
+                    if (!keys || !keys.n || !keys.e) {
+                        toggleStatus('verifyStatus', 'Chaves no navegador incompletas (n/e ausentes).', 'error');
+                        return;
+                    }
+                    setValue('publicKeyN', keys.n);
+                    setValue('publicKeyE', keys.e);
+                    toggleStatus('verifyStatus', 'Chave pública carregada do navegador.', 'success');
+                } catch (e) {
+                    toggleStatus('verifyStatus', 'Falha ao carregar chaves do navegador.', 'error');
+                    console.error(e);
+                }
+            }
+
+        async function verifySignature() {
+            const file = document.getElementById('fileInput').files[0];
+            const signature = document.getElementById('signatureInput').value.trim();
+            const n = document.getElementById('publicKeyN').value.trim();
+            const e = document.getElementById('publicKeyE').value.trim();
+            const salt = document.getElementById('saltInput').value.trim();
+
+            if (!file || !signature || !n || !e || !salt) {
+                alert('Preencha todos os campos e selecione um arquivo.');
+                return;
+            }
+
+            const form = new FormData();
+            form.append('file', file);
+            form.append('signature', signature);
+            form.append('n', n);
+            form.append('e', e);
+            form.append('salt', salt);
+
+            toggleStatus('verifyStatus', 'Verificando assinatura...', '');
+            const res = await fetch('/api/verify', { method: 'POST', body: form });
+            const data = await res.json();
+            const ok = !!data.valid;
+            document.getElementById('verificationResult').textContent = ok ? 'Assinatura válida.' : 'Assinatura inválida.';
+            document.getElementById('verificationResult').className = ok ? 'success' : 'error';
+            toggleStatus('verifyStatus', ok ? 'Verificação concluída.' : 'Falha na verificação.', ok ? 'success' : 'error');
+        }
+
+        function toggleStatus(id, text, cls) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text;
+            el.classList.remove('success','error');
+            if (cls) el.classList.add(cls);
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="brand">
+                <div class="logo"></div>
+                <h1>CryptoSigner</h1>
+                <span class="badge">Validação de Assinatura</span>
+            </div>
+            <nav class="nav">
+                <a href="/">Assinar</a>
+                <a href="/check.html">Verificar</a>
+            </nav>
+        </div>
+
+        <div class="grid">
+            <section class="card panel">
+                <h2>1) Dados da verificação</h2>
+                <p class="p">Informe o arquivo, a assinatura, a chave pública (n,e) e o salt (hex) usado no hash.</p>
+                <!-- Linha 1: arquivos lado a lado (documento e .sig) -->
+                <div class="row">
+                    <div style="flex:1">
+                        <label>Arquivo para verificar</label>
+                        <input type="file" id="fileInput" class="file" />
+                    </div>
+                    <div style="flex:1">
+                        <label>Arquivo .sig (JSON)</label>
+                        <input type="file" id="sigFileInput" class="file" accept=".sig,.json,application/json,text/json" />
+                    </div>
+                </div>
+                <!-- Linha 2: ações -->
+                <div class="row" style="margin-top:10px">
+                    <button class="btn" onclick="verifySignature()">Verificar</button>
+                    <button class="btn secondary" onclick="loadPublicKeyFromLocal()">Usar chaves salvas</button>
+                    <button class="btn secondary" onclick="loadSigFromUpload()">Usar .sig</button>
+                    <span id="verifyStatus" class="p"></span>
+                </div>
+                <hr class="sep" />
+                <div class="row">
+                    <div style="flex:1">
+                        <label>Assinatura</label>
+                        <textarea id="signatureInput" class="textarea" placeholder="Assinatura em inteiro/decimal"></textarea>
+                    </div>
+                </div>
+                <div class="row" style="margin-top:10px">
+                    <div style="flex:1">
+                        <label>n (modulus)</label>
+                        <input id="publicKeyN" class="input" placeholder="n" />
+                    </div>
+                    <div style="width:220px">
+                        <label>e (público)</label>
+                        <input id="publicKeyE" class="input" placeholder="e" />
+                    </div>
+                    <div style="width:300px">
+                        <label>Salt (hex)</label>
+                        <input id="saltInput" class="input" placeholder="ex: a1b2c3..." />
+                    </div>
+                </div>
+                <div class="row" style="margin-top:10px">
+                </div>
+            </section>
+
+            
+
+            <section class="card panel" style="grid-column: span 12;">
+                <h2>Resultado</h2>
+                <div id="verificationResult" class="p"></div>
+            </section>
+        </div>
+
+        <div class="footer">Projeto acadêmico simplificado. Não utilizar em produção.</div>
+    </div>
+</body>
+</html>

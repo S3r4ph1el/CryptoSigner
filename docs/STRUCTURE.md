@@ -1,22 +1,18 @@
 CryptoSigner/
 ├── src/
-│   ├── app.py
-│   ├── core/
-│   │   ├── __init__.py
+│   ├── app.py          # Inicialização do projeto
+│   ├── routes.py       # Rotas utilizadas
+│   ├── core/           # Lógica das funções
 │   │   ├── rsa.py
 │   │   └── sha.py
-│   ├── templates/
+│   ├── templates/      # Servir arquivos HTML
 │   │   ├── signer.html
 │   │   └── check.html
-│   └── static/
-│       └── style.css
-│
+│   └── data/           # Arquivo usado para armazenar as assinaturas
+│       
 ├── docs/
 │   ├── LICENSE
 │   └── STRUCTURE.md
-│
-├── tests/
-│   └── tests_rsa.py
 │
 ├── README.md
 ├── CryptoSignerReport.pdf

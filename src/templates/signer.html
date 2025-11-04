@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CryptoSigner • Assinar</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script>
+        function setText(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+
+        function setValue(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.value = text;
+        }
+
+            async function generateKeys() {
+                const btn = document.getElementById('btnGenerateKeys');
+                try {
+                    if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
+                    toggleStatus('keysStatus', 'Gerando chaves...', '');
+
+                    const res = await fetch('/api/generate', {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' },
+                        cache: 'no-store'
+                    });
+
+                    if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(`Falha ao gerar chaves (${res.status}). ${text}`);
+                    }
+
+                    const keys = await res.json();
+                    if (!('n' in keys) || !('e' in keys) || !('d' in keys)) {
+                        throw new Error('Resposta inválida do servidor: campos n/e/d ausentes.');
+                    }
+
+                    setValue('pubN', keys.n);
+                    setValue('pubE', keys.e);
+                    setValue('privD', keys.d);
+
+                    localStorage.setItem('rsaKeys', JSON.stringify(keys));
+                    toggleStatus('keysStatus', 'Chaves geradas e armazenadas no navegador.', 'success');
+                } catch (err) {
+                    console.error(err);
+                    toggleStatus('keysStatus', `Erro: ${err.message ?? err}`, 'error');
+                    alert('Não foi possível gerar as chaves. Verifique o servidor e tente novamente.');
+                } finally {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Gerar chaves'; }
+                }
+            }
+
+        function copyFrom(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.select?.();
+            el.setSelectionRange?.(0, 99999);
+            navigator.clipboard.writeText(el.value ?? el.textContent ?? '');
+        }
+
+            function loadSavedKeys() {
+                try {
+                    const raw = localStorage.getItem('rsaKeys');
+                    if (!raw) {
+                        toggleStatus('keysStatus', 'Nenhuma chave salva encontrada no navegador.', 'error');
+                        return;
+                    }
+                    const keys = JSON.parse(raw);
+                    if (!keys || !keys.n || !keys.e || !keys.d) {
+                        toggleStatus('keysStatus', 'Formato inválido de chaves no navegador.', 'error');
+                        return;
+                    }
+                    setValue('pubN', keys.n);
+                    setValue('pubE', keys.e);
+                    setValue('privD', keys.d);
+                    toggleStatus('keysStatus', 'Chaves carregadas do navegador.', 'success');
+                } catch (e) {
+                    console.error(e);
+                    toggleStatus('keysStatus', 'Falha ao carregar as chaves do navegador.', 'error');
+                }
+            }
+
+        async function signFile() {
+            const fileEl = document.getElementById('fileInput');
+            const file = fileEl.files[0];
+            if (!file) { alert('Selecione um arquivo.'); return; }
+
+            const keys = JSON.parse(localStorage.getItem('rsaKeys') || 'null');
+            if (!keys) { alert('Gere as chaves primeiro.'); return; }
+
+            const form = new FormData();
+            form.append('file', file);
+            form.append('n', keys.n);
+            form.append('d', keys.d);
+
+            toggleStatus('signStatus', 'Assinando arquivo...', '');
+            const res = await fetch('/api/sign', { method: 'POST', body: form });
+            const data = await res.json();
+
+            // Exibir resultados
+            setValue('outFilename', data.filename ?? file.name);
+            setValue('outSignature', data.signature ?? '');
+            setValue('outHash', data.hash ?? '');
+            setValue('outSalt', data.salt ?? '');
+            toggleStatus('signStatus', 'Arquivo assinado.', 'success');
+        }
+
+        function toggleStatus(id, text, cls) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text;
+            el.classList.remove('success','error');
+            if (cls) el.classList.add(cls);
+        }
+
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="brand">
+                <div class="logo"></div>
+                <h1>CryptoSigner</h1>
+                <span class="badge">Assinatura Digital (acadêmico)</span>
+            </div>
+            <nav class="nav">
+                <a href="/">Assinar</a>
+                <a href="/check.html">Verificar</a>
+            </nav>
+        </div>
+
+        <div class="grid">
+            <section class="card panel half">
+                <h2>1) Gerar chaves RSA</h2>
+                <p class="p">As chaves são geradas no backend e salvas no seu navegador para uso imediato.</p>
+                <div class="row">
+                                            <button id="btnGenerateKeys" class="btn" onclick="generateKeys()">Gerar chaves</button>
+                                            <button class="btn secondary" onclick="loadSavedKeys()">Carregar chaves salvas</button>
+                    <span id="keysStatus" class="p"></span>
+                </div>
+                <hr class="sep" />
+                <div class="row">
+                    <div style="flex:1">
+                        <label>n (modulus)</label>
+                        <input id="pubN" class="input" readonly />
+                    </div>
+                    <div style="width:140px">
+                        <label>e (público)</label>
+                        <input id="pubE" class="input" readonly />
+                    </div>
+                    <div style="width:220px">
+                        <label>d (privado)</label>
+                        <input id="privD" class="input" readonly />
+                    </div>
+                </div>
+                <div class="row" style="margin-top:10px">
+                    <button class="btn secondary" onclick="copyFrom('pubN')">Copiar n</button>
+                    <button class="btn secondary" onclick="copyFrom('pubE')">Copiar e</button>
+                    <button class="btn warn" onclick="copyFrom('privD')">Copiar d</button>
+                </div>
+            </section>
+
+            <section class="card panel half">
+                <h2>2) Assinar arquivo</h2>
+                <p class="p">Selecione um arquivo para gerar o hash (com salt) e a assinatura usando sua chave privada.</p>
+                <div class="row">
+                    <input type="file" id="fileInput" class="file" />
+                    <button class="btn" onclick="signFile()">Assinar</button>
+                    <span id="signStatus" class="p"></span>
+                </div>
+                <hr class="sep" />
+                <div class="row">
+                    <div style="flex:1">
+                        <label>Arquivo</label>
+                        <input id="outFilename" class="input" readonly />
+                    </div>
+                </div>
+                <div class="row" style="margin-top:10px">
+                    <div style="flex:1">
+                        <label>Assinatura</label>
+                        <textarea id="outSignature" class="textarea" readonly></textarea>
+                    </div>
+                </div>
+                <div class="row" style="margin-top:10px">
+                    <div style="flex:1">
+                        <label>Hash</label>
+                        <textarea id="outHash" class="textarea" readonly></textarea>
+                    </div>
+                    <div style="width:280px">
+                        <label>Salt (hex)</label>
+                        <input id="outSalt" class="input" readonly />
+                    </div>
+                </div>
+                <div class="row" style="margin-top:10px">
+                    <button class="btn secondary" onclick="copyFrom('outSignature')">Copiar assinatura</button>
+                    <button class="btn secondary" onclick="copyFrom('outHash')">Copiar hash</button>
+                    <button class="btn secondary" onclick="copyFrom('outSalt')">Copiar salt</button>
+                </div>
+            </section>
+        </div>
+
+        <div class="footer">Projeto acadêmico simplificado. Não utilizar em produção.</div>
+    </div>
+</body>
+</html>
