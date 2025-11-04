@@ -56,39 +56,75 @@ CryptoSigner é um projeto acadêmico que implementa um sistema simplificado de 
 
 ---
 
-## **Como Utilizar**
+## Como utilizar (interface web)
 
-### **1. Geração de Chaves**
+A aplicação inclui uma interface web pronta para uso, pensada para o fluxo mais comum. As principais ações podem ser feitas sem tocar diretamente na API:
+
+- Acesse a interface: abra http://127.0.0.1:5000/ no navegador.
+
+- Gerar chaves (UI):
+  - Clique em "Gerar chaves" na página "Assinar". O frontend chama `/api/generate` e exibirá `n`, `e` e `d`.
+  - As chaves também são salvas no `localStorage` do navegador (campo `rsaKeys`) para uso posterior.
+  - Você pode reutilizar as chaves com o botão "Carregar chaves salvas".
+
+- Assinar arquivo (UI):
+  - Na página "Assinar", selecione o arquivo a ser assinado e clique em "Assinar".
+  - A interface envia o arquivo e os valores `n`/`d` (privada) para `/api/sign`.
+  - O backend retorna o `hash`, o `salt` (hex) e a `signature` (inteiro); a UI exibe esses valores.
+  - O backend salva um arquivo `.sig` (JSON) na pasta `src/data/`. O frontend não gera mais o `.sig` localmente para evitar duplicação.
+
+- Verificar assinatura (UI):
+  - Abra a página "Verificar".
+  - Faça upload do arquivo original e também do arquivo `.sig` (campo "Arquivo .sig (JSON)").
+  - Clique em "Usar .sig" para preencher automaticamente `signature`, `salt`, `n` e `e` a partir do `.sig` carregado. Você pode usar "Usar chaves salvas" para preencher `n`/`e` a partir do `localStorage` ou preenchê-las manualmente se tiver copiado.
+  - Clique em "Verificar" para enviar os dados ao endpoint `/api/verify`.
+  - O resultado (válida / inválida) é exibido na tela.
+
+## Como utilizar (API direta)
+
+Se preferir usar a API programaticamente, os endpoints principais são os mesmos usados pela interface:
+
+### 1) Geração de chaves
 - Endpoint: `/api/generate`
 - Método: `GET`
-- Retorna:
-  - `n`: Modulus (chave pública e privada)
-  - `e`: Expoente público (chave pública)
-  - `d`: Expoente privado (chave privada)
+- Resposta (JSON):
+  - `n` (string): modulus
+  - `e` (string): expoente público
+  - `d` (string): expoente privado
 
-### **2. Assinatura de Arquivos**
+> Observação: as chaves são retornadas como strings para evitar perda de precisão no JavaScript (n pode exceder 2**53).
+
+### 2) Assinatura
 - Endpoint: `/api/sign`
 - Método: `POST`
-- Parâmetros:
-  - Arquivo (`file`): O arquivo a ser assinado.
-  - `n`: Modulus (chave pública e privada).
-  - `d`: Expoente privado (chave privada).
-- Retorna:
-  - `hash`: Hash do arquivo.
-  - `salt`: Salt utilizado no hash.
-  - `signature`: Assinatura gerada.
+- Form fields (multipart/form-data):
+  - `file`: arquivo a ser assinado (binário)
+  - `n`: modulus (string ou número)
+  - `d`: expoente privado (string ou número)
+- Resposta (JSON):
+  - `filename`: nome do arquivo
+  - `hash`: hash em hex
+  - `salt`: salt em hex
+  - `signature`: assinatura (inteiro em string)
 
-### **3. Verificação de Assinaturas**
+### 3) Verificação
 - Endpoint: `/api/verify`
 - Método: `POST`
-- Parâmetros:
-  - Arquivo (`file`): O arquivo cuja assinatura será verificada.
-  - `n`: Modulus (chave pública e privada).
-  - `e`: Expoente público (chave pública).
-  - `signature`: Assinatura a ser validada.
-  - `salt`: Salt utilizado no hash.
-- Retorna:
-  - `valid`: Indica se a assinatura é válida (`true` ou `false`).
+- Form fields (multipart/form-data):
+  - `file`: arquivo original (binário)
+  - `signature`: assinatura (string ou número)
+  - `n`: modulus (string ou número)
+  - `e`: expoente público (string ou número)
+  - `salt`: salt em hex (string)
+- Resposta (JSON):
+  - `filename`: nome do arquivo
+  - `hash`: hash em hex (recomputado)
+  - `signature`: assinatura enviada
+  - `valid`: booleano indicando sucesso da verificação
+
+---
+
+Mantenha em mente que este projeto é um exemplo acadêmico. Em um cenário real seria necessário usar bibliotecas e formatos padronizados (ex.: PKCS#1, X.509, OpenSSL) e chaves de tamanho adequado.
 
 ---
 
