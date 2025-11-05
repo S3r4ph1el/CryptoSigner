@@ -12,10 +12,11 @@ CryptoSigner/
 │       
 ├── docs/
 │   ├── LICENSE
-│   └── STRUCTURE.md
+│   ├── STRUCTURE.md
+│   ├── CryptoSignerReport.tex
+│   └── CryptoSignerReport.pdf
 │
 ├── pins/               # Imagens
 │
 ├── README.md
-├── CryptoSignerReport.pdf
 └── requirements.txt

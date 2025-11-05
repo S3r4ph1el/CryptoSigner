@@ -1,0 +1,124 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{graphicx}
+\graphicspath{{../pins/}}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\geometry{margin=2.5cm}
+\setlist{noitemsep,topsep=3pt}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+
+\title{CryptoSigner --- Relatório Técnico}
+\author{Trabalho I de Segurança Computacional}
+\date{Autor: Enzo Teles}
+
+\begin{document}
+\maketitle
+
+	\tableofcontents
+
+
+\section*{Resumo}
+\addcontentsline{toc}{section}{Resumo}
+CryptoSigner é um protótipo didático de assinatura digital com RSA e um hash simplificado ("SHA-128"). A aplicação oferece uma API HTTP (Flask) e uma interface web para gerar chaves, assinar arquivos e verificar assinaturas. Este relatório descreve a solução, detalha as implementações de RSA e do hash, e relata dificuldades enfrentadas, com foco em conversões de tipos e geração de chaves.
+
+\section{Descrição completa da solução}
+A solução está organizada em camadas simples:
+\begin{itemize}
+    \item \textbf{Backend (Flask)}: arquivos \texttt{src/app.py} e \texttt{src/routes.py}. Expõe três rotas: \texttt{/api/generate} (gera chaves), \texttt{/api/sign} (assina) e \texttt{/api/verify} (verifica). Assinaturas em JSON são salvas em \texttt{src/data/} (arquivo \texttt{.sig}).
+    \item \textbf{Core criptográfico}: \texttt{src/core/rsa.py} (RSA) e \texttt{src/core/sha.py} (hash simplificado).
+    \item \textbf{Frontend}: páginas em \texttt{src/templates/} com CSS em \texttt{src/static/styles.css}. A UI chama a API e apresenta resultados; chaves retornadas são persistidas no \texttt{localStorage}.
+\end{itemize}
+Fluxo típico:\ (i) gerar chaves, (ii) enviar arquivo para assinatura, (iii) baixar ou copiar o JSON de assinatura, (iv) verificar enviando o arquivo original, a assinatura, a chave pública e o \emph{salt}. A Figura~\ref{fig:ui} ilustra telas principais.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.32\textwidth]{genKeys.png}\hfill
+    \includegraphics[width=.32\textwidth]{sign.png}\hfill
+    \includegraphics[width=.32\textwidth]{sucess_verify.png}
+    \caption{Geração de chaves, assinatura e verificação com sucesso na interface web.}
+    \label{fig:ui}
+\end{figure}
+
+\section{RSA: teoria e implementação}
+\subsection{Visão geral do RSA}
+RSA baseia-se na dificuldade de fatorar o produto de dois primos grandes. Seja $p$ e $q$ primos, $n=pq$ e $\varphi(n)=(p-1)(q-1)$. Escolhe-se $e$ coprimo a $\varphi(n)$, e calcula-se $d\equiv e^{-1} \pmod{\varphi(n)}$. A assinatura de uma mensagem (ou seu resumo) $m$ é $s\equiv m^d\bmod n$; a verificação checa se $m\equiv s^e\bmod n$.
+
+\subsection{Como foi implementado (\texttt{core/rsa.py})}
+\begin{itemize}
+    \item \textbf{Primalidade}: \texttt{is\_prime(n)} usa divisões simples (testes por 2 e 3, e varredura 6$k\pm$1). É adequado para fins didáticos, \textbf{não} para produção.
+    \item \textbf{Geração de primos}: \texttt{gen\_prime(bits)} usa \texttt{random.Random().getrandbits(bits)} para gerar um ímpar com \emph{bit alto} ligado e testa com \texttt{is\_prime}. Tamanho padrão: \texttt{bits=48} (apenas para demonstração).
+    \item \textbf{Chaves}: \texttt{gen\_keys(bits=48)} fixa $e=65537$, sorteia $p,q$, calcula $n$, $\varphi$, verifica $\gcd(e,\varphi)=1$, e obtém $d$ via \texttt{modinv}. Evita $p=q$ e faz várias tentativas até o sucesso.
+    \item \textbf{Inverso modular}: \texttt{modinv(a,m)} tenta \texttt{pow(a,-1,m)} (CPython 3.8+) e faz \emph{fallback} para o algoritmo Euclidiano estendido. Retorna \texttt{None} se $\gcd(a,m)\ne1$.
+    \item \textbf{Assinar}: \texttt{sign(hash\_bytes,d,n)} converte o hash para inteiro grande via \texttt{int.from\_bytes(..., 'big')} e computa $s=\texttt{pow}(m,d,n)$.
+    \item \textbf{Verificar}: \texttt{verify(signature,hash\_bytes,e,n)} recupera $m'=\texttt{pow}(s,e,n)$ e compara a $m\bmod n$.
+\end{itemize}
+\textbf{Observações de segurança}: o uso de primos de 48 bits, RNG não criptográfico e ausência de padding tornam o esquema \emph{inseguro} para uso real. O objetivo é exclusivamente pedagógico.
+
+\section{SHA-128: teoria e implementação}
+\subsection{Ideia geral}
+O módulo \texttt{core/sha.py} implementa um \emph{hash} simplificado de 128 bits (saída de 16 bytes), que chamamos "SHA-128 didático". Não segue nenhum padrão de mercado e serve para fins didáticos.
+
+\subsection{Etapas da função}
+\begin{enumerate}
+    \item \textbf{Padding} (\texttt{pad\_message}): concatena 0x80, preenche com zeros até sobrar 8 bytes, e anexa o comprimento original em bits (8 bytes) --- formato semelhante ao das famílias SHA reais.
+    \item \textbf{Divisão em blocos}: em \texttt{split\_blocks}, blocos de 64 bytes (512 bits).
+    \item \textbf{Estado inicial com \emph{salt}} (\texttt{initialize\_hash\_values}): se nenhum \emph{salt} é fornecido, sorteia 8 bytes (\texttt{random.randbytes(8)}). Usa esse valor como semente para \texttt{random.Random(seed)} e gera dois \emph{words} de 64 bits, $(h_1,h_2)$.
+    \item \textbf{Compressão} (\texttt{compression\_function}): para cada byte do bloco, faz
+    $h_1=(h_1+\text{byte})\bmod 2^{64}$ e $h_2=(h_2\oplus\text{byte})$. É propositalmente simples.
+    \item \textbf{Saída}: concatena $h_1\,||\,h_2$ como 16 bytes: \texttt{h1.to\_bytes(8,'big') + h2.to\_bytes(8,'big')}.
+\end{enumerate}
+Na assinatura, o servidor devolve o hash em hexadecimal e o \emph{salt} (também em hex). Na verificação, o arquivo é reprocessado com o mesmo \emph{salt} e o resultado comparado via RSA.
+
+\textbf{Observações}: por ser linear e com estado pequeno, esta função de \emph{hash} não é resistente a colisões/preimagens. É apenas uma peça didática.
+
+\section{API, formatos e fluxo}
+\subsection{Endpoints}
+\begin{itemize}
+    \item \texttt{GET /api/generate}: retorna $n$, $e$ e $d$ como \emph{strings} (evita perda de precisão em JavaScript).
+    \item \texttt{POST /api/sign}: recebe arquivo e $n,d$; calcula $(\text{hash},\text{salt})$, gera $s$, salva um \texttt{.sig} em \texttt{src/data/} e retorna JSON com \{\texttt{filename, hash, salt, signature}\}.
+    \item \texttt{POST /api/verify}: recebe arquivo, $s$, $n$, $e$ e \emph{salt}; recomputa o hash com o mesmo \emph{salt} e responde \{\texttt{filename, hash, signature, valid}\}.
+\end{itemize}
+\subsection{Arquivo .sig}
+O arquivo JSON salvo contém algo como:
+\begin{verbatim}
+{
+  "filename": "mensagem.txt",
+  "hash": "...hex...",
+  "salt": "...hex...",
+  "signature": "...inteiro decimal..."
+}
+\end{verbatim}
+A UI de verificação pode importar esse JSON (\texttt{Usar .sig}).
+
+\section{Principais dificuldades e contornos}
+\subsection{Conversões de tipos (int, bytes, str, hex)}
+Um ponto sensível foi converter corretamente entre tipos:
+\begin{itemize}
+    \item Do lado RSA, a mensagem a assinar é o \emph{hash} em \texttt{bytes}. Converte-se para inteiro com \texttt{int.from\_bytes(...,'big')}. Na comparação da verificação, usa-se $(m \bmod n)$ para alinhar o domínio.
+    \item Para transportar dados no JSON, inteiros grandes (\texttt{n}, \texttt{e}, \texttt{d}, assinatura) vão como \emph{strings}; isso evita \emph{overflow}/perda de precisão no JavaScript (\texttt{Number} $>2^{53}-1$).
+    \item O \emph{salt} e o \emph{hash} trafegam em hexadecimal: usa-se \texttt{binascii.hexlify}/\texttt{unhexlify}. Isso simplifica persistência e compatibilidade.
+\end{itemize}
+Erros comuns que precisaram de ajuste: espaços em branco em campos numéricos (\texttt{strip()}), \texttt{ValueError} ao fazer \texttt{int()} de entradas inválidas e \texttt{binascii.Error} ao decodificar hex --- todos tratados nas rotas.
+
+\subsection{Geração de chaves e subfunções}
+Implementar manualmente as sub-rotinas de \emph{número primo}, \emph{inverso modular} e \emph{laço de tentativa} para obter $(p,q)$ adequados exigiu cuidado:
+\begin{itemize}
+    \item Evitar $p=q$ e garantir $\gcd(e,\varphi)=1$.
+    \item \emph{Fallback} robusto em \texttt{modinv} quando \texttt{pow(a,-1,m)} não está disponível ou quando não há inverso.
+    \item Controlar tentativas e retornar erro claro após muitas falhas (\texttt{RuntimeError}).
+\end{itemize}
+Essas escolhas deixaram o código claro para fins de ensino, embora \textbf{não} sejam suficientes para segurança real (RNG criptográfico, testes de primalidade probabilísticos, tamanhos de chave grandes, padding, etc.).
+
+\section*{Conclusão}
+O CryptoSigner cumpre seu papel didático: demonstra o ciclo de assinatura/verificação com RSA, ilustra um esquema de \emph{hash} com \emph{salt}, e expõe desafios práticos de tipos e geração de chaves. Para uso real, é necessário adotar bibliotecas e padrões consolidados.
+
+\vspace{6pt}
+\noindent\textbf{Repositório}: \url{https://github.com/S3r4ph1el/CryptoSigner}
+
+\end{document}
