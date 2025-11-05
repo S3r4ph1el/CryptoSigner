@@ -14,6 +14,8 @@ CryptoSigner/
 │   ├── LICENSE
 │   └── STRUCTURE.md
 │
+├── pins/               # Imagens
+│
 ├── README.md
 ├── CryptoSignerReport.pdf
 └── requirements.txt

@@ -14,7 +14,7 @@ def is_prime(n):
         i += 6
     return True
 
-def gen_prime(bits: int = 32):
+def gen_prime(bits: int = 48):
     rnd = Random()
     if bits < 2:
         raise ValueError("bits must be >= 2")
